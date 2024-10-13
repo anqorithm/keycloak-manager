@@ -71,23 +71,45 @@ class UpdateUserRequest(BaseModel):
     enabled: bool
 
 
-@app.put("/users/{user_id}")
-async def update_user(user_id: str, request: UpdateUserRequest):
+# Other imports and initial setup remain unchanged
+
+
+@app.put("/users/{user_id}/enable")
+async def enable_user(user_id: str):
     token = await fetch_token()
-    update_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users/{user_id}"
+    enable_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users/{user_id}"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {"id": request.id, "enabled": request.enabled}
+    payload = {"enabled": True}
 
     async with httpx.AsyncClient() as client:
-        response = await client.put(update_url, headers=headers, json=payload)
+        response = await client.put(enable_url, headers=headers, json=payload)
         if response.status_code != 204:
-            logger.error("Failed to update user: %s", response.text)
+            logger.error("Failed to enable user: %s", response.text)
             raise HTTPException(
-                status_code=response.status_code, detail="Could not update user"
+                status_code=response.status_code, detail="Could not enable user"
             )
 
-        logger.info("User updated successfully.")
-        return JSONResponse(content={"message": "User updated successfully."})
+        logger.info("User enabled successfully.")
+        return JSONResponse(content={"message": "User enabled successfully."})
+
+
+@app.put("/users/{user_id}/disable")
+async def disable_user(user_id: str):
+    token = await fetch_token()
+    disable_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users/{user_id}"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {"enabled": False}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.put(disable_url, headers=headers, json=payload)
+        if response.status_code != 204:
+            logger.error("Failed to disable user: %s", response.text)
+            raise HTTPException(
+                status_code=response.status_code, detail="Could not disable user"
+            )
+
+        logger.info("User disabled successfully.")
+        return JSONResponse(content={"message": "User disabled successfully."})
 
 
 @app.delete("/users/{user_id}")
