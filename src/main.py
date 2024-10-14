@@ -4,7 +4,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 import httpx
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
 load_dotenv()
 
@@ -66,12 +67,67 @@ async def get_users():
         return JSONResponse(content=users_data)
 
 
+class CreateUserRequest(BaseModel):
+    username: str = Field(..., example="Test")
+    enabled: bool = Field(..., example=True)
+    email: str = Field(..., example="test@anqorithm.com")
+    firstName: str = Field(..., example="Test")
+    lastName: str = Field(..., example="Test")
+    realmRoles: Optional[List[str]] = Field(default_factory=list)
+
+
 class UpdateUserRequest(BaseModel):
-    id: str
-    enabled: bool
+    enabled: bool = Field(..., example=False)
 
 
-# Other imports and initial setup remain unchanged
+@app.post("/users/")
+async def create_user(user: CreateUserRequest):
+    token = await fetch_token()
+    create_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    user_data = user.dict()
+    user_data["disableableCredentialTypes"] = []
+    user_data["requiredActions"] = []
+    user_data["notBefore"] = 0
+    user_data["access"] = {
+        "manageGroupMembership": True,
+        "view": True,
+        "mapRoles": True,
+        "impersonate": True,
+        "manage": True,
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(create_url, headers=headers, json=user_data)
+        if response.status_code != 201:
+            logger.error("Failed to create user: %s", response.text)
+            raise HTTPException(
+                status_code=response.status_code, detail="Could not create user"
+            )
+
+        logger.info("User created successfully.")
+        return JSONResponse(content={"message": "User created successfully."})
+
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: str, user: UpdateUserRequest):
+    token = await fetch_token()
+    update_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users/{user_id}"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # Prepare the payload based on the UpdateUserRequest model
+    payload = user.dict()
+    async with httpx.AsyncClient() as client:
+        response = await client.put(update_url, headers=headers, json=payload)
+        if response.status_code != 204:
+            logger.error("Failed to update user: %s", response.text)
+            raise HTTPException(
+                status_code=response.status_code, detail="Could not update user"
+            )
+
+        logger.info("User updated successfully.")
+        return JSONResponse(content={"message": "User updated successfully."})
 
 
 @app.put("/users/{user_id}/enable")
