@@ -2,6 +2,7 @@ import os
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -13,6 +14,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL")
 CLIENT_ID = os.getenv("CLIENT_ID")
